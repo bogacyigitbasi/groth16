@@ -115,8 +115,6 @@ assert all(np.equal(np.matmul(L_GF, w)*np.matmul(R_GF, w), np.matmul(O_GF, w)))
 # print("V(tau):", [poly(tau) for poly in V_polys])
 # print("W(tau):", [poly(tau) for poly in W_polys])
 
-
-
 # assert U_polys(tau)*V_polys(tau) == W_polys(tau)
 
 def inner_product_polys_witness(polys, witness):
@@ -135,10 +133,11 @@ print("Wx: ",Wx)
 # assert all(np.equal(np.matmul(L_GF, w)*np.matmul(R_GF, w), np.matmul(O_GF, w)))
 
 # now lets check if term1*term2 == term3
-tau = GF(20)
+# tau = GF(20)
 
 # assert Ux(tau)*Vx(tau) == Wx(tau) # fails as expected
 
+### QAP Balancing T(x)
 # it fails cause an imbalance arises on the multiplication of L and R and the
 # equation becomes skewed. Left has a polynomial with degree 8, right with 4
 # add the polynomial T(x)*H(x) = (x -1) (x-2)(x-3)(x-4)(x-5) interpolated points
@@ -148,6 +147,43 @@ for i in range(2,5):
     Tx *= galois.Poly([1,p-i],field=GF)
 
 print("Tx: ",Tx)
+
+# trusted setup needs to be managed by a trusted agent who generates tau
+# and deletes after computing G1[τ^0 * T(τ)], G1[τ^1 * T(τ)], ..., G1[τ^d-1 * T(τ)]
+# we will use bn128
+
+from py_ecc.bn128 import G1, G2, multiply, add, pairing, eq
+
+from functools import reduce
+
+
+
+tau = GF(123)
+T_tau = Tx(tau)
+
+# powers of tau for A , C on G1 # G1[τ^0], G1[τ^1], ..., G1[τ^d-1]
+srs_tau_G1 = [multiply(G1, int(tau**i)) for i in range (0,5)]
+# print(srs_tau_G1)
+
+# powers of tau for B on G2
+# G2[τ^0], G2[τ^1], ..., G2[τ^d]
+srs_tau_G2 = [multiply(G2, int(tau**i)) for i in range (0,5)]
+# print(srs_tau_G2)
+
+
+# G1[τ^0 * T(τ)], G1[τ^1 * T(τ)], ..., G1[τ^d-1 * T(τ)]
+srs_tau_hx_tx_G1 = [multiply(G1, int(tau**i)*Tx(tau)) for i in range (0,5)]
+# print(srs_tau_hx_tx_G1)
+
+
+# verify trusted setup
+tau_int = int(tau) # the pairing function and elliptic curve operations in the py_ecc library require standard integers, not elements from galois.GF
+
+pairing_left = pairing(multiply(G2, tau_int), multiply(G1, tau_int**2))
+pairing_right = pairing(multiply(G2,tau_int), multiply(G1,tau_int))
+assert pairing_right == pairing_right, "verification failed, ceremony is not trusted"
+
+## QAP Balancing H(x)
 
 # now we need the remaining polynomial H(x)
 # U(x) * V(x) = W(x) + T(x)+H(x)
@@ -165,27 +201,5 @@ print("remainder: ", remainder)
 # compute tau
 print(Hx(tau))
 
-# trusted setup needs to be managed by a trusted agent who generates tau
-# and deletes after computing G1[τ^0 * T(τ)], G1[τ^1 * T(τ)], ..., G1[τ^d-1 * T(τ)]
-# we will use bn128
-
-from py_ecc.bn128 import G1, G2, multiply, add, pairing, eq
-
-from functools import reduce
-
-# G1[τ^0], G1[τ^1], ..., G1[τ^d-1]
-structured_reference_string_G1 = [multiply(G1, int(tau**i)) for i in range (0,5)]
-print(structured_reference_string_G1)
-# G2[τ^0], G2[τ^1], ..., G2[τ^d]
-srs_tau_G2 = [multiply(G2, int(tau**i)) for i in range (0,5)]
-print(srs_tau_G2)
-# G1[τ^0 * T(τ)], G1[τ^1 * T(τ)], ..., G1[τ^d-1 * T(τ)]
-srs_hx_tx = [multiply(G1, int(tau**i*Tx(tau))) for i in range (0,5)]
-print(srs_hx_tx)
-# verify trusted setup
-tau_int = int(tau) # the pairing function and elliptic curve operations in the py_ecc library require standard integers, not elements from galois.GF
-
-pairing_left = pairing(multiply(G2, tau_int), multiply(G1, tau_int**2))
-pairing_right = pairing(multiply(G2,tau_int), multiply(G1,tau_int))
-assert pairing_right == pairing_right, "verification failed, ceremony is not trusted"
+### Prover
 
