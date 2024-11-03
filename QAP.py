@@ -165,3 +165,27 @@ print("remainder: ", remainder)
 # compute tau
 print(Hx(tau))
 
+# trusted setup needs to be managed by a trusted agent who generates tau
+# and deletes after computing G1[τ^0 * T(τ)], G1[τ^1 * T(τ)], ..., G1[τ^d-1 * T(τ)]
+# we will use bn128
+
+from py_ecc.bn128 import G1, G2, multiply, add, pairing, eq
+
+from functools import reduce
+
+# G1[τ^0], G1[τ^1], ..., G1[τ^d-1]
+structured_reference_string_G1 = [multiply(G1, int(tau**i)) for i in range (0,5)]
+print(structured_reference_string_G1)
+# G2[τ^0], G2[τ^1], ..., G2[τ^d]
+srs_tau_G2 = [multiply(G2, int(tau**i)) for i in range (0,5)]
+print(srs_tau_G2)
+# G1[τ^0 * T(τ)], G1[τ^1 * T(τ)], ..., G1[τ^d-1 * T(τ)]
+srs_hx_tx = [multiply(G1, int(tau**i*Tx(tau))) for i in range (0,5)]
+print(srs_hx_tx)
+# verify trusted setup
+tau_int = int(tau) # the pairing function and elliptic curve operations in the py_ecc library require standard integers, not elements from galois.GF
+
+pairing_left = pairing(multiply(G2, tau_int), multiply(G1, tau_int**2))
+pairing_right = pairing(multiply(G2,tau_int), multiply(G1,tau_int))
+assert pairing_right == pairing_right, "verification failed, ceremony is not trusted"
+
