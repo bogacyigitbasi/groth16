@@ -12,8 +12,8 @@ GF = galois.GF(p)
 x = 2
 y = 4
 
-# out = 4*x**3 + 5*x**2*y - 7*x*y**2 + 10*x
-# print (out)
+out = 4*x**3 + 5*x**2*y - 7*x*y**2 + 10*x
+print (out)
 
 ## we start with converting this polynomial to
 ## Arithmetic circuit to R1CS and then QAP
